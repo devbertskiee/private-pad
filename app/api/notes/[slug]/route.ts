@@ -8,6 +8,8 @@ import {
 import { checkInProcessRateLimit } from "@/lib/rate-limit/in-process";
 import { validateSlug } from "@/lib/validation/slug";
 
+export const runtime = "nodejs";
+
 type RouteContext = { params: Promise<{ slug: string }> };
 
 function jsonError(message: string, status: number) {

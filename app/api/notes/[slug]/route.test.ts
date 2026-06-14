@@ -15,7 +15,7 @@ import {
   resetRateLimitForTests,
   setRateLimitConfigForTests,
 } from "@/lib/rate-limit/in-process";
-import { DELETE, GET, PUT } from "./route";
+import { DELETE, GET, PUT, runtime } from "./route";
 
 const payload = {
   cryptoVersion: CRYPTO_VERSION,
@@ -49,6 +49,10 @@ describe("note API routes", () => {
   afterEach(() => {
     setNoteRepositoryForTests(null);
     resetRateLimitForTests();
+  });
+
+  it("declares the Node.js runtime", () => {
+    expect(runtime).toBe("nodejs");
   });
 
   it("loads missing notes", async () => {
