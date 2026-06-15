@@ -9,6 +9,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { formatNoteTitle, NoteClient } from "./note-client";
+import { ThemeProvider } from "./theme-provider";
 import { decryptNoteText, encryptNoteText } from "@/lib/crypto/note-crypto";
 import {
   NOTEBOOK_VERSION,
@@ -76,6 +77,19 @@ function mockFetchSequence(...responses: Response[]) {
   return fetchMock;
 }
 
+function renderNoteClient(slug = "daily-log") {
+  return render(
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="dark"
+      enableSystem={false}
+      storageKey="zk-note-theme"
+    >
+      <NoteClient slug={slug} />
+    </ThemeProvider>
+  );
+}
+
 async function submitPasswordChange(
   newPassword: string,
   confirmPassword = newPassword
@@ -111,7 +125,16 @@ describe("NoteClient tabbed editor", () => {
     window.localStorage.clear();
     vi.stubGlobal(
       "matchMedia",
-      vi.fn(() => ({ matches: true }))
+      vi.fn(() => ({
+        matches: true,
+        media: "(prefers-color-scheme: dark)",
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }))
     );
     vi.mocked(encryptNoteText).mockResolvedValue(encryptedPayload);
     vi.mocked(decryptNoteText).mockResolvedValue("legacy text");
@@ -127,7 +150,7 @@ describe("NoteClient tabbed editor", () => {
       okJson({ exists: false }),
       okJson({ ok: true, note: storedNote })
     );
-    render(<NoteClient slug="daily-log" />);
+    renderNoteClient();
 
     const textarea = await unlock();
     expect(textarea).toHaveProperty("value", "");
@@ -170,7 +193,7 @@ describe("NoteClient tabbed editor", () => {
   it("wraps legacy plaintext on unlock and restores valid notebook plaintext", async () => {
     mockFetchSequence(okJson({ exists: true, note: storedNote }));
     vi.mocked(decryptNoteText).mockResolvedValueOnce("legacy text");
-    const { unmount } = render(<NoteClient slug="daily-log" />);
+    const { unmount } = renderNoteClient();
 
     await unlock();
     expect(screen.getByLabelText("Note text")).toHaveProperty(
@@ -190,7 +213,7 @@ describe("NoteClient tabbed editor", () => {
     vi.mocked(decryptNoteText).mockResolvedValueOnce(
       serializeNotebook(existing)
     );
-    render(<NoteClient slug="daily-log" />);
+    renderNoteClient();
 
     await unlock();
     expect(screen.getByLabelText("Note text")).toHaveProperty(
@@ -218,7 +241,7 @@ describe("NoteClient tabbed editor", () => {
       .mockReturnValueOnce(false)
       .mockReturnValueOnce(true)
       .mockReturnValueOnce(true);
-    render(<NoteClient slug="daily-log" />);
+    renderNoteClient();
 
     await unlock();
     fireEvent.click(screen.getByRole("button", { name: "Close tab 2" }));
@@ -252,7 +275,7 @@ describe("NoteClient tabbed editor", () => {
         )
       )
     );
-    render(<NoteClient slug="daily-log" />);
+    renderNoteClient();
 
     await unlock();
 
@@ -270,7 +293,7 @@ describe("NoteClient tabbed editor", () => {
       return okJson({ exists: false });
     });
     vi.stubGlobal("fetch", fetchMock);
-    render(<NoteClient slug="daily-log" />);
+    renderNoteClient();
 
     fireEvent.keyDown(window, { key: "s", ctrlKey: true });
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -313,7 +336,7 @@ describe("NoteClient tabbed editor", () => {
         )
       )
     );
-    render(<NoteClient slug="daily-log" />);
+    renderNoteClient();
 
     await unlock();
     expect(screen.getAllByRole("tab")).toHaveLength(3);
@@ -344,7 +367,7 @@ describe("NoteClient tabbed editor", () => {
       return okJson({ exists: false });
     });
     vi.stubGlobal("fetch", fetchMock);
-    render(<NoteClient slug="daily-log" />);
+    renderNoteClient();
 
     await unlock();
     fireEvent.change(screen.getByLabelText("Note text"), {
@@ -365,7 +388,7 @@ describe("NoteClient tabbed editor", () => {
 
   it("renders title, header actions, theme storage, and themed tab strip", async () => {
     mockFetchSequence(okJson({ exists: false }));
-    render(<NoteClient slug="daily_log" />);
+    renderNoteClient("daily_log");
 
     await unlock();
 
@@ -403,7 +426,9 @@ describe("NoteClient tabbed editor", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "Switch to light theme" })
     );
-    expect(window.localStorage.getItem("zk-note-theme")).toBe("light");
+    await waitFor(() =>
+      expect(window.localStorage.getItem("zk-note-theme")).toBe("light")
+    );
   });
 
   it("deletes with expected revision, clears editor, and shows a success toast", async () => {
@@ -415,7 +440,7 @@ describe("NoteClient tabbed editor", () => {
     vi.mocked(decryptNoteText).mockResolvedValueOnce(
       serializeNotebook(notebook([{ id: "one", content: "delete me" }]))
     );
-    render(<NoteClient slug="daily-log" />);
+    renderNoteClient();
 
     await unlock();
     fireEvent.click(screen.getByRole("button", { name: "Delete note" }));
@@ -443,7 +468,7 @@ describe("NoteClient tabbed editor", () => {
     vi.mocked(decryptNoteText).mockResolvedValueOnce(
       serializeNotebook(notebook([{ id: "one", content: "keep me" }]))
     );
-    render(<NoteClient slug="daily-log" />);
+    renderNoteClient();
 
     await unlock();
     fireEvent.click(screen.getByRole("button", { name: "Delete note" }));
@@ -473,7 +498,7 @@ describe("NoteClient tabbed editor", () => {
     vi.mocked(decryptNoteText).mockResolvedValueOnce(
       serializeNotebook(notebook([{ id: "one", content: "keep me" }]))
     );
-    render(<NoteClient slug="daily-log" />);
+    renderNoteClient();
 
     await unlock();
     fireEvent.click(screen.getByRole("button", { name: "Delete note" }));
@@ -522,7 +547,7 @@ describe("NoteClient tabbed editor", () => {
         iv: "second-iv",
         ciphertext: "second-ciphertext",
       });
-    render(<NoteClient slug="daily-log" />);
+    renderNoteClient();
 
     await waitFor(() =>
       expect(document.activeElement).toBe(
@@ -595,7 +620,7 @@ describe("NoteClient tabbed editor", () => {
       okJson({ exists: false }),
       okJson({ ok: true, note: storedNote })
     );
-    render(<NoteClient slug="daily-log" />);
+    renderNoteClient();
     await unlock("session-pw");
     fireEvent.change(screen.getByLabelText("Note text"), {
       target: { value: "draft" },
@@ -624,7 +649,7 @@ describe("NoteClient tabbed editor", () => {
     vi.mocked(decryptNoteText).mockResolvedValueOnce(
       serializeNotebook(notebook([{ id: "one", content: "saved" }]))
     );
-    render(<NoteClient slug="daily-log" />);
+    renderNoteClient();
     await unlock("old-pw");
 
     await submitPasswordChange("");
@@ -642,7 +667,7 @@ describe("NoteClient tabbed editor", () => {
       statusResponse(500),
       okJson({ ok: true, note: storedNote })
     );
-    render(<NoteClient slug="daily-log" />);
+    renderNoteClient();
     await unlock("old-pw");
 
     await submitPasswordChange("new-pw");

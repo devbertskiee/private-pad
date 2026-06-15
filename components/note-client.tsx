@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { MoonIcon, SunIcon, TrashIcon } from "@phosphor-icons/react";
+import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { ConfirmDestructiveDialog } from "@/components/confirm-destructive-dialog";
-import { THEME_STORAGE_KEY } from "@/components/theme-root";
 import { decryptNoteText, encryptNoteText } from "@/lib/crypto/note-crypto";
 import type {
   EncryptedNotePayload,
@@ -47,7 +47,6 @@ type LoadState =
   | { status: "ready"; exists: true; note: StoredEncryptedNote };
 
 type SaveStatus = "idle" | "dirty" | "saving" | "saved" | "failed" | "conflict";
-type ThemePreference = "light" | "dark";
 
 const CHANGE_PASSWORD_CONFLICT_MESSAGE =
   "Another save changed this note. Reload before retrying so this browser does not silently overwrite data.";
@@ -90,12 +89,6 @@ export function formatNoteTitle(slug: string) {
   return /\bnotes?$/i.test(title) ? title : `${title} Notes`;
 }
 
-function getSystemTheme(): ThemePreference {
-  return window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light";
-}
-
 export function NoteClient({ slug }: { slug: string }) {
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [password, setPassword] = useState("");
@@ -114,11 +107,7 @@ export function NoteClient({ slug }: { slug: string }) {
   const [changePasswordError, setChangePasswordError] = useState<string | null>(
     null
   );
-  const [theme, setTheme] = useState<ThemePreference>(() => {
-    if (typeof window === "undefined") return "dark";
-    const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
-    return stored === "light" || stored === "dark" ? stored : getSystemTheme();
-  });
+  const { resolvedTheme, setTheme } = useTheme();
   const noteTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -158,9 +147,7 @@ export function NoteClient({ slug }: { slug: string }) {
   );
   const tabLimitReached = (notebook?.tabs.length ?? 0) >= MAX_NOTEBOOK_TABS;
 
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark");
-  }, [theme]);
+  const isDarkTheme = resolvedTheme !== "light";
 
   function pruneEmptyTabsBeforeSave(currentNotebook: Notebook): Notebook {
     if (currentNotebook.tabs.length <= 1) return currentNotebook;
@@ -344,11 +331,7 @@ export function NoteClient({ slug }: { slug: string }) {
   }
 
   function toggleTheme() {
-    setTheme((current) => {
-      const next = current === "dark" ? "light" : "dark";
-      window.localStorage.setItem(THEME_STORAGE_KEY, next);
-      return next;
-    });
+    setTheme(resolvedTheme === "dark" ? "light" : "dark");
   }
 
   async function deleteNote() {
@@ -659,9 +642,9 @@ export function NoteClient({ slug }: { slug: string }) {
               type="button"
               variant="outline"
               size="icon-sm"
-              aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
+              aria-label={`Switch to ${isDarkTheme ? "light" : "dark"} theme`}
             >
-              {theme === "dark" ? <SunIcon /> : <MoonIcon />}
+              {isDarkTheme ? <SunIcon /> : <MoonIcon />}
             </Button>
             <Button
               onClick={() => setDeleteDialogOpen(true)}
