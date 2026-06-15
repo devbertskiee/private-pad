@@ -33,18 +33,20 @@ export default function RootLayout({
       suppressHydrationWarning
       className={cn(
         "h-full",
+        "dark",
         "antialiased",
         geistSans.variable,
         geistMono.variable,
         "font-sans",
         inter.variable
       )}
+      style={{ colorScheme: "dark" }}
     >
       <body className="min-h-full flex flex-col">
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
-          enableSystem
+          defaultTheme="dark"
+          enableSystem={false}
           disableTransitionOnChange
           storageKey="zk-note-theme"
         >
